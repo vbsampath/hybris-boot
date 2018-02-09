@@ -266,6 +266,30 @@ case "$DEVICE" in
             "$@"
         ;;
 
+    "herolte")
+        sed -i \
+            -e 's block/platform/155a0000.ufs/by-name/BOOT sda5 ' \
+            -e 's block/platform/155a0000.ufs/by-name/BOTA0 sda1 ' \
+            -e 's block/platform/155a0000.ufs/by-name/BOTA1 sda2 ' \
+            -e 's block/platform/155a0000.ufs/by-name/CACHE sda15 ' \
+            -e 's block/platform/155a0000.ufs/by-name/CPEFS sdd1 ' \
+            -e 's block/platform/155a0000.ufs/by-name/CP_DEBUG sda17 ' \
+            -e 's block/platform/155a0000.ufs/by-name/DNT sda10 ' \
+            -e 's block/platform/155a0000.ufs/by-name/EFS sda3 ' \
+            -e 's block/platform/155a0000.ufs/by-name/HIDDEN sda16 ' \
+            -e 's block/platform/155a0000.ufs/by-name/OTA sda7 ' \
+            -e 's block/platform/155a0000.ufs/by-name/PARAM sda4 ' \
+            -e 's block/platform/155a0000.ufs/by-name/PERSDATA sda13 ' \
+            -e 's block/platform/155a0000.ufs/by-name/PERSISTENT sda11 ' \
+            -e 's block/platform/155a0000.ufs/by-name/RADIO sda8 ' \
+            -e 's block/platform/155a0000.ufs/by-name/RECOVERY sda6 ' \
+            -e 's block/platform/155a0000.ufs/by-name/STEADY sda12 ' \
+            -e 's block/platform/155a0000.ufs/by-name/SYSTEM sda14 ' \
+            -e 's block/platform/155a0000.ufs/by-name/TOMBSTONES sda9 ' \
+            -e 's block/platform/155a0000.ufs/by-name/USERDATA sda18 ' \
+            "$@"
+        ;;
+
     "mako")
         sed -i \
             -e 's block/platform/msm_sdcc.1/by-name/modem mmcblk0p1 ' \
