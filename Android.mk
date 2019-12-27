@@ -28,12 +28,14 @@ HYBRIS_RECOVERYIMG_COMMANDLINE := bootmode=debug
 HYBRIS_BOOTLOGO :=
 # BOOT
 HYBRIS_B_DEFAULT_OS := sailfishos
-HYBRIS_B_ALWAYSDEBUG :=
+HYBRIS_B_ALWAYSDEBUG := 0
 # RECOVERY
 HYBRIS_R_DEFAULT_OS := sailfishos
 HYBRIS_R_ALWAYSDEBUG := 1
 
 ## All manual "config" should be done above this line
+
+FSTAB_FILTER := (goldfish|recovery)
 
 # Force deferred assignment
 
@@ -44,23 +46,20 @@ HYBRIS_FIXUP_MOUNTS := $(shell ls -1 $(LOCAL_PATH)/../fixup-mountpoints $(LOCAL_
 # in AOSP we could use TARGET_VENDOR
 # TARGET_VENDOR := $(shell echo $(PRODUCT_MANUFACTURER) | tr '[:upper:]' '[:lower:]')
 # but Cyanogenmod seems to use device/*/$(TARGET_DEVICE) in config.mk so we will too.
-HYBRIS_FSTABS := $(shell find device/*/$(TARGET_DEVICE) -name *fstab* | grep -v goldfish)
+HYBRIS_FSTABS := $(shell find device/*/$(TARGET_DEVICE) -name *fstab* | grep -v -E '$(FSTAB_FILTER)')
+
 # If fstab files were not found from primary device repo then they might be in
 # some other device repo so try to search for them first in device/PRODUCT_MANUFACTURER. 
 # In many cases PRODUCT_MANUFACTURER is the short vendor name used in folder names.
 ifeq "$(HYBRIS_FSTABS)" ""
 TARGET_VENDOR := "$(shell echo $(PRODUCT_MANUFACTURER) | tr '[:upper:]' '[:lower:]')"
-HYBRIS_FSTABS := $(shell find device/$(TARGET_VENDOR) -name *fstab* | grep -v goldfish)
+HYBRIS_FSTABS := $(shell find device/$(TARGET_VENDOR) -name *fstab* | grep -v -E '$(FSTAB_FILTER)')
 endif
 # Some devices devices have the short vendor name in PRODUCT_BRAND so try to
 # search from device/PRODUCT_BRAND if fstab files are still not found.
 ifeq "$(HYBRIS_FSTABS)" ""
 TARGET_VENDOR := "$(shell echo $(PRODUCT_BRAND) | tr '[:upper:]' '[:lower:]')"
-HYBRIS_FSTABS := $(shell find device/$(TARGET_VENDOR) -name *fstab* | grep -v goldfish)
-endif
-# Some devices are inside subfolders
-ifeq "$(HYBRIS_FSTABS)" ""
-HYBRIS_FSTABS := $(shell find device/*/*/$(TARGET_DEVICE) -name *fstab* | grep -v goldfish)
+HYBRIS_FSTABS := $(shell find device/$(TARGET_VENDOR) -name *fstab* | grep -v -E '$(FSTAB_FILTER)')
 endif
 
 # Get the unique /dev field(s) from the line(s) containing the fs mount point
@@ -71,8 +70,8 @@ HYBRIS_DATA_PART := $(shell /usr/bin/perl -w -e '$$fs=shift; if ($$ARGV[0]) { wh
 $(warning ********************* /boot appears to live on $(HYBRIS_BOOT_PART))
 $(warning ********************* /data appears to live on $(HYBRIS_DATA_PART))
 
-ifneq ($(words $(HYBRIS_DATA_PART)),1)
-$(error There should be a one and only one device entry for HYBRIS_DATA_PART)
+ifneq ($(words $(HYBRIS_BOOT_PART))$(words $(HYBRIS_DATA_PART)),11)
+$(error There should be a one and only one device entry for HYBRIS_BOOT_PART and HYBRIS_DATA_PART)
 endif
 
 # Command used to make the image
@@ -142,6 +141,7 @@ $(LOCAL_BUILT_MODULE): $(INSTALLED_KERNEL_TARGET) $(BOOT_RAMDISK) $(MKBOOTIMG) $
 	@mkdir -p $(dir $@)
 	@rm -rf $@
 	$(hide)$(MKBOOTIMG) --ramdisk $(BOOT_RAMDISK) $(HYBRIS_BOOTIMAGE_ARGS) $(BOARD_MKBOOTIMG_ARGS) --output $@
+	@echo -n "SEANDROIDENFORCE" >> $@
 
 $(BOOT_RAMDISK): $(BOOT_RAMDISK_FILES) $(BB_STATIC)
 	@echo "Making initramfs : $@"
@@ -219,10 +219,6 @@ UPDATER_SCRIPT_SRC := $(LOCAL_PATH)/updater-script
 ANDROID_VERSION_MAJOR := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
 ANDROID_VERSION_MINOR := $(word 2, $(subst ., , $(PLATFORM_VERSION)))
 
-ifeq ($(ANDROID_VERSION_MINOR),)
-    ANDROID_VERSION_MINOR := 0
-endif
-
 ifeq ($(TARGET_OTA_ASSERT_DEVICE),)
     ASSERT_DEVICE := assert(getprop("ro.product.device") == "$(TARGET_DEVICE)" \|\| getprop("ro.build.product") == "$(TARGET_DEVICE)" \|\| getprop("ro.cm.device") == "$(TARGET_DEVICE)");
 else
@@ -266,56 +262,19 @@ $(LOCAL_BUILT_MODULE): $(UPDATER_UNPACK_SRC)
 	@echo "Installing updater .zip script resources."
 	mkdir -p $(dir $@)
 	rm -rf $@
-	@sed -e 's %DEVICE% $(TARGET_DEVICE) g' \
+	@sed -e 's %DEVICE% $(TARGET_DEVICET) g' \
 	     $(UPDATER_UNPACK_SRC) > $@
 
 HYBRIS_UPDATER_UNPACK := $(LOCAL_BUILD_MODULE)
 
 .PHONY: hybris-hal hybris-common
 
-HYBRIS_COMMON_TARGETS := bootimage hybris-updater-unpack hybris-recovery hybris-boot servicemanager logcat updater init adb adbd linker libc libEGL libGLESv1_CM libGLESv2
-ifneq ($(HYBRIS_BOOT_PART),)
-HYBRIS_COMMON_TARGETS += hybris-updater-script
-else
-$(warning Skipping build of hybris-updater-script since HYBRIS_BOOT_PART is not specified)
-endif
-
-HYBRIS_COMMON_ANDROID8_TARGETS := verity_signer boot_signer e2fsdroid vendorimage ramdisk libselinux_stubs libsurfaceflinger libhwc2_compat_layer bootctl fec
-
-ifeq ($(shell test $(ANDROID_VERSION_MAJOR) -ge 8 && echo true),true)
-HYBRIS_COMMON_TARGETS += $(HYBRIS_COMMON_ANDROID8_TARGETS)
-# for 64 bit Android, also include the 32 bit variants that we need.
-HYBRIS_COMMON_64_BIT_EXTRA_TARGETS = linker_32 libc_32 libEGL_32 libGLESv1_CM_32 libGLESv2_32 libhwc2_compat_layer_32
-else
-# for 64 bit Android, also include the 32 bit variants that we need.
-HYBRIS_COMMON_64_BIT_EXTRA_TARGETS = linker_32 libc_32 libEGL_32 libGLESv1_CM_32 libGLESv2_32
-endif
-
-hybris-common: $(HYBRIS_COMMON_TARGETS)
+hybris-common: bootimage hybris-updater-unpack hybris-updater-script hybris-recovery hybris-boot servicemanager logcat updater init adb adbd linker libc libEGL libGLESv1_CM libGLESv2
 
 ifeq ("$(TARGET_ARCH)", "arm64")
-HYBRIS_TARGETS := $(HYBRIS_COMMON_TARGETS) $(HYBRIS_COMMON_64_BIT_EXTRA_TARGETS)
+hybris-hal: hybris-common linker_32 libc_32 libEGL_32 libGLESv1_CM_32 libGLESv2_32
 else
-HYBRIS_TARGETS := $(HYBRIS_COMMON_TARGETS)
+hybris-hal: hybris-common
 endif
 
-PROVIDE_POWER_PROFILE := 1
-ifneq ($(shell find $(DEVICE_PACKAGE_OVERLAYS) -name power_profile.xml | wc -l),1)
-$(error Multiple or missing power_profile.xml files)
-PROVIDE_POWER_PROFILE := 0
-endif
 
-ifeq ($(strip $(PROVIDE_POWER_PROFILE)),1)
-POWER_PROFILE := $(foreach d, $(DEVICE_PACKAGE_OVERLAYS), \
-   $(shell find $(d) -name power_profile.xml) \
-)
-BATTERY_CAPACITY := $(shell xmllint --xpath 'string(/device[@name="Android"]/item[@name="battery.capacity"])' $(POWER_PROFILE))
-$(shell mkdir -p $(PRODUCT_OUT)/system/etc/init)
-$(shell echo -e "on boot\n    setprop ro.hybris.battery.capacity $(BATTERY_CAPACITY)" > $(PRODUCT_OUT)/system/etc/init/hybris_extras.rc)
-endif
-
-hybris-hal: $(HYBRIS_TARGETS)
-
-droidmedia: $(shell external/droidmedia/detect_build_targets.sh $(PORT_ARCH) $(TARGET_ARCH))
-
-audioflingerglue: $(shell external/audioflingerglue/detect_build_targets.sh $(PORT_ARCH) $(TARGET_ARCH))
