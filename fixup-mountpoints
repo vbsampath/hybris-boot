@@ -689,7 +689,7 @@ case "$DEVICE" in
 
     "i9305" | "encore" | "n7000" | "n7100" | "i9300" | "anzu" | \
     "coconut" | "haida" | "hallon" | "iyokan" | "mango" | "phoenix" | \
-    "satsuma" | "smultron" | "urushi" | "zeus" | "jenad")
+    "satsuma" | "smultron" | "urushi" | "zeus" | "jenad" | "i9100")
     # Untested for other revisions of Samsung GT-S6500:
     # | "jena" | "trebon")
         sed -i \
@@ -708,7 +708,7 @@ case "$DEVICE" in
             "$@"
         ;;
 
-    "p3100" | "p3110" | "p3113" | "p5100" | "p5110" | "p5113" | "espressowifi" | "espresso3g" | "i9100g")
+    "p3100" | "p3110" | "p3113" | "p5100" | "p5110" | "p5113" | "espressowifi" | "espresso3g" | "i9100g" )
         sed -i \
             -e 's block/platform/omap/omap_hsmmc.1/by-name/DATAFS mmcblk0p10 ' \
             -e 's block/platform/omap/omap_hsmmc.1/by-name/KERNEL mmcblk0p5 ' \
